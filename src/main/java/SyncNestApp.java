@@ -49,11 +49,11 @@ public class SyncNestApp extends Application {
         Button runNow = new Button("Run Backup Now");
         runNow.setOnAction(e -> {
             try {
-                BackupRunner.runBackup(
+                BackupRunner.main(new String[]{
                     sourceField.getText(),
                     backupField.getText(),
                     logField.getText()
-                );
+                });
                 Alert a = new Alert(Alert.AlertType.INFORMATION, "Backup complete.");
                 a.showAndWait();
             } catch (Exception ex) {

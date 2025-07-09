@@ -1,26 +1,31 @@
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class BackupRunner {
-    private static final ObjectMapper mapper = new ObjectMapper();
+    public static void main(String[] args) throws Exception {
+        Path sourceDir = Paths.get("source");
+        Path backupDir = Paths.get("backup");
+        Path manifestPath = backupDir.resolve("manifest.json");
+        Path logFile = backupDir.resolve("backup.log");
 
-    public static void runBackup(String source, String backup, String logDir) throws Exception {
-        Path sourceDir = Paths.get(source).toRealPath();
-        Path backupDir = Paths.get(backup).toRealPath();
-        Path logDirectory = Paths.get(logDir);
-        Files.createDirectories(logDirectory);
+        Files.createDirectories(backupDir);
 
-        Path logFile = logDirectory.resolve("backup_log_" + System.currentTimeMillis() + ".txt");
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, String> manifest;
 
-        Map<String, String> manifest = new HashMap<>();
-        Path manifestPath = backupDir.resolve("backup_manifest.json");
         if (Files.exists(manifestPath)) {
             manifest = mapper.readValue(Files.newBufferedReader(manifestPath), Map.class);
+        } else {
+            manifest = new java.util.HashMap<>();
         }
 
         Set<String> seen = new HashSet<>();

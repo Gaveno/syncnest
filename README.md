@@ -1,6 +1,12 @@
 # SyncNest
 
-✅ **How to build and run your `SyncNest` JavaFX project (Maven)**
+## About
+This is an application for setting up automatic backing up of a directory to a second directory.
+Created with the assistance of Copilot and ChatGPT 4o.
+
+## Build and Run
+
+✅ **How to build and run `SyncNest` JavaFX project (Maven)**
 
 **1️⃣ Prerequisites:**
 - Install [Java 17+ JDK](https://adoptopenjdk.net/)
@@ -42,7 +48,3 @@ For a true `.exe` or `.dmg`, use `jpackage`:
 ```bash
 jpackage --input target --name SyncNest --main-jar syncnest-1.0.0.jar --main-class SyncNestApp
 ```
-
-✅ Done! Your backup tool is now ready to ship.
-
-Need a Windows `.exe` script or ready `jpackage` config? Just say **package it!** 🚀
