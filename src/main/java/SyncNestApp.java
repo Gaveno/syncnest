@@ -13,6 +13,7 @@ public class SyncNestApp extends Application {
     private TextField sourceField, backupField, logField;
     private CheckBox autoStartBox, autoBackupBox;
     private TextField scheduleField;
+    private TextArea logWindow; // Log window for displaying log messages
     private static final Path CONFIG_PATH = Paths.get("syncnest_config.json");
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -49,19 +50,22 @@ public class SyncNestApp extends Application {
         Button runNow = new Button("Run Backup Now");
         runNow.setOnAction(e -> {
             try {
-                BackupRunner.main(new String[]{
+                logWindow.clear(); // Clear the log window before running the backup
+                BackupRunner.runBackup(
                     sourceField.getText(),
                     backupField.getText(),
-                    logField.getText()
-                });
-                Alert a = new Alert(Alert.AlertType.INFORMATION, "Backup complete.");
-                a.showAndWait();
+                    logField.getText(),
+                    logWindow::appendText // Pass a callback to update the log window
+                );
             } catch (Exception ex) {
                 ex.printStackTrace();
-                Alert a = new Alert(Alert.AlertType.ERROR, "Backup failed: " + ex.getMessage());
-                a.showAndWait();
+                logWindow.appendText("Backup failed: " + ex.getMessage());
             }
         });
+
+        logWindow = new TextArea(); // Initialize the log window
+        logWindow.setEditable(false); // Make the log window read-only
+        logWindow.setPrefHeight(200); // Set a preferred height for the log window
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -84,11 +88,11 @@ public class SyncNestApp extends Application {
         grid.add(new Label("Schedule (cron or time):"), 0, 5);
         grid.add(scheduleField, 1, 5);
 
-        root.getChildren().addAll(grid, save, runNow);
+        root.getChildren().addAll(grid, save, runNow, logWindow);
 
         loadConfig();
 
-        stage.setScene(new Scene(root, 600, 350));
+        stage.setScene(new Scene(root, 600, 450));
         stage.show();
     }
 
@@ -110,12 +114,10 @@ public class SyncNestApp extends Application {
             cfg.autoBackup = autoBackupBox.isSelected();
             cfg.schedule = scheduleField.getText();
             mapper.writerWithDefaultPrettyPrinter().writeValue(CONFIG_PATH.toFile(), cfg);
-            Alert a = new Alert(Alert.AlertType.INFORMATION, "Settings saved!");
-            a.showAndWait();
+            logWindow.appendText("Settings saved successfully!\n");
         } catch (Exception e) {
             e.printStackTrace();
-            Alert a = new Alert(Alert.AlertType.ERROR, "Could not save config: " + e.getMessage());
-            a.showAndWait();
+            logWindow.appendText("Error saving settings: " + e.getMessage() + "\n");
         }
     }
 
@@ -129,9 +131,13 @@ public class SyncNestApp extends Application {
                 autoStartBox.setSelected(cfg.runAtStartup);
                 autoBackupBox.setSelected(cfg.autoBackup);
                 scheduleField.setText(cfg.schedule);
+                logWindow.appendText("Configuration loaded successfully.\n");
+            } else {
+                logWindow.appendText("No configuration file found. Using default settings.\n");
             }
         } catch (Exception e) {
             e.printStackTrace();
+            logWindow.appendText("Error loading configuration: " + e.getMessage() + "\n");
         }
     }
 

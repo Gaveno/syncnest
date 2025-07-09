@@ -7,19 +7,16 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class BackupRunner {
-    public static void main(String[] args) throws Exception {
-
-        if (args.length < 3) {
-            throw new IllegalArgumentException("Usage: BackupRunner <sourceDir> <backupDir> <logFile>");
-        }
-        Path sourceDir = Paths.get(args[0]);
-        Path backupDir = Paths.get(args[1]);
+    public static void runBackup(String sourceDirPath, String backupDirPath, String logFilePath, Consumer<String> logCallback) throws Exception {
+        Path sourceDir = Paths.get(sourceDirPath);
+        Path backupDir = Paths.get(backupDirPath);
         Path manifestPath = backupDir.resolve("manifest.json");
-        Path logFile = Paths.get(args[2]);
+        Path logFile = Paths.get(logFilePath);
 
         Files.createDirectories(backupDir);
 
@@ -34,8 +31,7 @@ public class BackupRunner {
 
         Set<String> seen = new HashSet<>();
 
-        // Log the source directory
-        log(logFile, "Starting backup from: " + sourceDir);
+        logCallback.accept("Starting backup from: " + sourceDir + "\n");
         if (!Files.exists(sourceDir) || !Files.isDirectory(sourceDir)) {
             throw new IOException("Source directory does not exist or is not a directory: " + sourceDir);
         }
@@ -44,7 +40,7 @@ public class BackupRunner {
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                 try {
                     if (!Files.isRegularFile(file) && !Files.isDirectory(file)) {
-                        log(logFile, "Skipping non-regular file: " + file);
+                        logCallback.accept("Skipping non-regular file: " + file + "\n");
                         return FileVisitResult.CONTINUE; // Skip non-regular files
                     }
                     Path relative = sourceDir.relativize(file);
@@ -58,7 +54,7 @@ public class BackupRunner {
                     Path destFile = backupDir.resolve(relative);
                     if (Files.isDirectory(file)) {
                         Files.createDirectories(destFile);
-                        log(logFile, relative + " directory backed up");
+                        logCallback.accept(relative + " directory backed up\n");
                         return FileVisitResult.CONTINUE;
                     }
                     Files.createDirectories(destFile.getParent());
@@ -68,11 +64,12 @@ public class BackupRunner {
 
                     if (!Files.exists(destFile) || !sourceHash.equals(destHash)) {
                         Files.copy(file, destFile, StandardCopyOption.REPLACE_EXISTING);
-                        log(logFile, relative + (destHash == null ? " new backup" : " change backed up"));
+                        logCallback.accept(relative + (destHash == null ? " new backup\n" : " change backed up\n"));
                     }
                     manifest.put(relative.toString(), sourceHash);
                 } catch (Exception e) {
                     e.printStackTrace();
+                    logCallback.accept("Error processing file: " + file + " - " + e.getMessage() + "\n");
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -87,9 +84,9 @@ public class BackupRunner {
                     Files.createDirectories(sourcePath.getParent());
                     try {
                         Files.createSymbolicLink(sourcePath, destPath);
-                        log(logFile, tracked + " soft link created");
+                        logCallback.accept(tracked + " soft link created\n");
                     } catch (Exception e) {
-                        log(logFile, "Could not create soft link for " + tracked + ": " + e.getMessage());
+                        logCallback.accept("Could not create soft link for " + tracked + ": " + e.getMessage() + "\n");
                     }
                 }
             }
@@ -97,7 +94,7 @@ public class BackupRunner {
 
         mapper.writerWithDefaultPrettyPrinter().writeValue(Files.newBufferedWriter(manifestPath), manifest);
 
-        System.out.println("Backup complete. Log at " + logFile);
+        logCallback.accept("Backup complete. Log at " + logFile + "\n");
     }
 
     private static String sha256(Path path) throws Exception {
@@ -114,9 +111,5 @@ public class BackupRunner {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();
-    }
-
-    private static void log(Path logFile, String line) throws IOException {
-        Files.write(logFile, Collections.singleton(line), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
 }
