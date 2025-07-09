@@ -28,3 +28,7 @@ replay_pid*
 
 # Target Files
 *.lst
+
+# Local Test Files
+srctest/**/*.*
+desttest/**/*.*

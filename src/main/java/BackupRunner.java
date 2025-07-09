@@ -12,10 +12,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class BackupRunner {
     public static void main(String[] args) throws Exception {
-        Path sourceDir = Paths.get("source");
-        Path backupDir = Paths.get("backup");
+
+        if (args.length < 3) {
+            throw new IllegalArgumentException("Usage: BackupRunner <sourceDir> <backupDir> <logFile>");
+        }
+        Path sourceDir = Paths.get(args[0]);
+        Path backupDir = Paths.get(args[1]);
         Path manifestPath = backupDir.resolve("manifest.json");
-        Path logFile = backupDir.resolve("backup.log");
+        Path logFile = Paths.get(args[2]);
 
         Files.createDirectories(backupDir);
 
@@ -30,13 +34,33 @@ public class BackupRunner {
 
         Set<String> seen = new HashSet<>();
 
+        // Log the source directory
+        log(logFile, "Starting backup from: " + sourceDir);
+        if (!Files.exists(sourceDir) || !Files.isDirectory(sourceDir)) {
+            throw new IOException("Source directory does not exist or is not a directory: " + sourceDir);
+        }
         Files.walkFileTree(sourceDir, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                 try {
+                    if (!Files.isRegularFile(file) && !Files.isDirectory(file)) {
+                        log(logFile, "Skipping non-regular file: " + file);
+                        return FileVisitResult.CONTINUE; // Skip non-regular files
+                    }
                     Path relative = sourceDir.relativize(file);
+                    if (relative.toString().isEmpty()) {
+                        return FileVisitResult.CONTINUE; // Skip the root directory
+                    }
                     seen.add(relative.toString());
+                    if (relative.toString().contains("..")) {
+                        throw new IOException("Invalid path: " + relative);
+                    }
                     Path destFile = backupDir.resolve(relative);
+                    if (Files.isDirectory(file)) {
+                        Files.createDirectories(destFile);
+                        log(logFile, relative + " directory backed up");
+                        return FileVisitResult.CONTINUE;
+                    }
                     Files.createDirectories(destFile.getParent());
 
                     String sourceHash = sha256(file);
